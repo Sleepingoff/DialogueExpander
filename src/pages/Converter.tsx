@@ -33,33 +33,78 @@ const CheckboxRow = styled.label`
 // ---------------- 변환 함수 ----------------
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const convertCPtoDE = (cpJson: any) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result: any = { hearts: {} };
+  const result = { hearts: {} };
 
   if (!cpJson.Changes) return result;
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  cpJson.Changes.forEach((change: any) => {
+  cpJson.Changes.forEach((change) => {
     if (change.Action !== "EditData") return;
     if (!change.Target?.startsWith("Characters/Dialogue/")) return;
 
     const entries = change.Entries || {};
     const when = change.When || {};
-    const hearts = when.Hearts ? Number(when.Hearts) : 0;
+    const baseHearts = when.Hearts ? Number(when.Hearts) : 0;
 
-    if (!result.hearts[hearts]) result.hearts[hearts] = {};
+    if (!result.hearts[baseHearts]) result.hearts[baseHearts] = {};
 
-    Object.entries(entries).forEach(([, text]) => {
-      const cond: { weather?: string; date?: string; location?: string } = {};
+    Object.entries(entries).forEach(([entryKey, text]) => {
+      const cond: {
+        weather?: string;
+        date?: string;
+        location?: string;
+        event?: string;
+        item?: string;
+      } = {};
+
+      // ---------------- When 조건 변환 ----------------
       if (when.Weather)
         cond.weather = when.Weather === "Rain" ? "Rainy" : when.Weather;
       if (when.Day) cond.date = when.Day;
       if (when.Location) cond.location = when.Location;
+      if (when.Event) cond.event = when.Event;
 
+      // ---------------- Entry Key 파싱 ----------------
+      // 요일 (Mon, Tue, ...)
+      if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/.test(entryKey)) {
+        cond.date = entryKey;
+      }
+      // 요일+하트 (Mon4 → Mon with 4 hearts)
+      else if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)$/.test(entryKey)) {
+        const [, day, hearts] = entryKey.match(
+          /(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)/
+        )!;
+        cond.date = day;
+        result.hearts[Number(hearts)] ??= {};
+        result.hearts[Number(hearts)][text as string] = cond;
+        return; // 여기서 종료 (별도 하트에 넣었음)
+      }
+      // 계절+날짜 (spring_15)
+      else if (/^(spring|summer|fall|winter)_\d+$/.test(entryKey)) {
+        cond.date = entryKey;
+      }
+      // 숫자 키 = 하트 수
+      else if (/^\d+$/.test(entryKey)) {
+        const h = Number(entryKey);
+        result.hearts[h] ??= {};
+        result.hearts[h]["default"] = text;
+        return;
+      }
+      // 이벤트 키
+      else if (entryKey.startsWith("eventSeen_")) {
+        const id = entryKey.split("_")[1];
+        cond.event = id;
+      }
+      // 선물 조건
+      else if (entryKey.startsWith("AcceptGift_")) {
+        const match = entryKey.match(/\((?:O|T|TR)\)(\w+)/);
+        if (match) cond.item = match[1];
+      }
+
+      // ---------------- 결과에 추가 ----------------
       if (Object.keys(cond).length > 0) {
-        result.hearts[hearts][text as string] = cond;
+        result.hearts[baseHearts][text as string] = cond;
       } else {
-        result.hearts[hearts]["default"] = text;
+        result.hearts[baseHearts]["default"] = text;
       }
     });
   });
