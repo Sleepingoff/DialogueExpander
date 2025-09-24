@@ -68,16 +68,7 @@ const convertCPtoDE = (cpJson: any) => {
       if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/.test(entryKey)) {
         cond.date = entryKey;
       }
-      // 요일+하트 (Mon4 → Mon with 4 hearts)
-      else if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)$/.test(entryKey)) {
-        const [, day, hearts] = entryKey.match(
-          /(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)/
-        )!;
-        cond.date = day;
-        result.hearts[Number(hearts)] ??= {};
-        result.hearts[Number(hearts)][text as string] = cond;
-        return; // 여기서 종료 (별도 하트에 넣었음)
-      }
+
       // 계절+날짜 (spring_15)
       else if (/^(spring|summer|fall|winter)_\d+$/.test(entryKey)) {
         cond.date = entryKey;
@@ -98,6 +89,58 @@ const convertCPtoDE = (cpJson: any) => {
       else if (entryKey.startsWith("AcceptGift_")) {
         const match = entryKey.match(/\((?:O|T|TR)\)(\w+)/);
         if (match) cond.item = match[1];
+      }
+      // 요일+하트 (Mon4, Tue6...)
+      else if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)$/.test(entryKey)) {
+        const [, day, hearts] = entryKey.match(
+          /(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)/
+        )!;
+        cond.date = day;
+        const h = Number(hearts);
+        result.hearts[h] ??= {};
+        result.hearts[h][text as string] = cond;
+        return;
+      }
+
+      // 계절+요일+하트 (spring_Mon6)
+      else if (
+        /^(spring|summer|fall|winter)_(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)$/.test(
+          entryKey
+        )
+      ) {
+        const [, season, weekday, hearts] = entryKey.match(
+          /(spring|summer|fall|winter)_(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)/
+        )!;
+        const h = Number(hearts);
+
+        // 요일 → 날짜 배열 변환
+        const weekdayMap: Record<string, number[]> = {
+          Mon: [1, 8, 15, 22],
+          Tue: [2, 9, 16, 23],
+          Wed: [3, 10, 17, 24],
+          Thu: [4, 11, 18, 25],
+          Fri: [5, 12, 19, 26],
+          Sat: [6, 13, 20, 27],
+          Sun: [7, 14, 21, 28],
+        };
+
+        const days = weekdayMap[weekday];
+        result.hearts[h] ??= {};
+
+        for (const d of days) {
+          const keyDate = `${season}_${d}`;
+          const cloneCond = { ...cond, date: keyDate };
+          // 조건 배열 누적
+          if (result.hearts[h][text]) {
+            const prev = result.hearts[h][text];
+            result.hearts[h][text] = Array.isArray(prev)
+              ? [...prev, cloneCond]
+              : [prev, cloneCond];
+          } else {
+            result.hearts[h][text] = cloneCond;
+          }
+        }
+        return;
       }
 
       // ---------------- 결과에 추가 ----------------
