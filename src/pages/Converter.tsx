@@ -4,7 +4,7 @@ import MonacoEditor, { type OnChange } from "@monaco-editor/react";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
 
-import * as JSON5 from "json5";
+import JSON5 from "json5";
 
 const Container = styled.div`
   display: flex;
