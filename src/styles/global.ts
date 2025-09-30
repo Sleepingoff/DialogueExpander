@@ -16,4 +16,8 @@ export const GlobalStyle = createGlobalStyle`
   button {
     cursor: pointer;
   }
+
+  a{
+    color: inherit;
+  }
 `;

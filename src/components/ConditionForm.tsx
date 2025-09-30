@@ -1,14 +1,34 @@
 import { useState } from "react";
 import styled from "styled-components";
+import DatePicker from "./DatePicker";
 
 export type ConditionType =
   | "weather"
   | "time"
   | "location"
   | "date"
+  | "daysInState"
+  | "action"
   | "item"
   | "flag"
-  | "event";
+  | "event"
+  | "kids"
+  | "chance"
+  | "rel";
+
+export type Conditions =
+  | { type: "weather"; value: string }
+  | { type: "time"; value: string }
+  | { type: "location"; value: string }
+  | { type: "date"; value: string | (string | number)[] }
+  | { type: "daysInState"; value: number }
+  | { type: "action"; value: string }
+  | { type: "item"; value: number | number[] }
+  | { type: "event"; value: string }
+  | { type: "flag"; key: FlagType; value: string }
+  | { type: "kids"; value: number }
+  | { type: "chance"; value: number }
+  | { type: "rel"; value: string };
 
 export type FlagType =
   | "mail"
@@ -18,15 +38,6 @@ export type FlagType =
   | "recipe"
   | "craft"
   | "bool";
-
-export type Conditions =
-  | { type: "weather"; value: string }
-  | { type: "time"; value: string }
-  | { type: "location"; value: string }
-  | { type: "date"; value: string }
-  | { type: "item"; value: number | number[] }
-  | { type: "event"; value: string }
-  | { type: "flag"; key: FlagType; value: string };
 
 interface Props {
   onSubmit: (heart: number, line: string, conditions: Conditions[]) => void;
@@ -88,15 +99,20 @@ export default function ConditionForm({ onSubmit }: Props) {
   const [flagKey, setFlagKey] = useState<FlagType>("mail");
   const [flagValue, setFlagValue] = useState<string>("");
 
-  const [dateMode, setDateMode] = useState<"season" | "weekday">("season");
-  const [season, setSeason] = useState<string>("spring");
-  const [day, setDay] = useState<number>(1);
-  const [weekday, setWeekday] = useState<string>("Mon");
-
   const addCondition = () => {
     let newCond: Conditions;
 
-    if (currentType === "flag") {
+    if (currentType === "daysInState") {
+      newCond = { type: "daysInState", value: Number(currentValue) };
+    } else if (currentType === "action") {
+      newCond = { type: "action", value: currentValue };
+    } else if (currentType === "kids") {
+      newCond = { type: "kids", value: Number(currentValue) };
+    } else if (currentType === "chance") {
+      newCond = { type: "chance", value: Number(currentValue) };
+    } else if (currentType === "rel") {
+      newCond = { type: "rel", value: currentValue };
+    } else if (currentType === "flag") {
       if (!flagValue.trim()) return;
       newCond = { type: "flag", key: flagKey, value: flagValue };
     } else if (currentType === "item") {
@@ -111,10 +127,15 @@ export default function ConditionForm({ onSubmit }: Props) {
         newCond = { type: "item", value: Number(currentValue) };
       }
     } else if (currentType === "date") {
-      if (dateMode === "season") {
-        newCond = { type: "date", value: `${season}_${day}` };
-      } else {
-        newCond = { type: "date", value: weekday };
+      try {
+        const parsed = JSON.parse(currentValue);
+        if (Array.isArray(parsed)) {
+          newCond = { type: "date", value: parsed };
+        } else {
+          newCond = { type: "date", value: parsed }; // 문자열 (Mon, spring_15, spring_Mon)
+        }
+      } catch {
+        newCond = { type: "date", value: currentValue }; // fallback
       }
     } else {
       if (!currentValue.trim()) return;
@@ -176,13 +197,18 @@ export default function ConditionForm({ onSubmit }: Props) {
           value={currentType}
           onChange={(e) => setCurrentType(e.target.value as ConditionType)}
         >
-          <option value="weather">weather</option>
-          <option value="time">time</option>
-          <option value="location">location</option>
-          <option value="date">date</option>
-          <option value="item">item</option>
-          <option value="event">event</option>
-          <option value="flag">flag</option>
+          <option value="weather">날씨</option>
+          <option value="time">시간</option>
+          <option value="location">장소</option>
+          <option value="date">날짜</option>
+          <option value="daysInState">상태 경과일</option>
+          <option value="action">행동</option>
+          <option value="item">아이템</option>
+          <option value="event">이벤트</option>
+          <option value="flag">플래그</option>
+          <option value="kids">아이 수</option>
+          <option value="chance">확률</option>
+          <option value="rel">관계</option>
         </select>
 
         {/* weather */}
@@ -200,58 +226,42 @@ export default function ConditionForm({ onSubmit }: Props) {
 
         {/* date */}
         {currentType === "date" && (
-          <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <select
-              value={dateMode}
-              onChange={(e) =>
-                setDateMode(e.target.value as "season" | "weekday")
-              }
-            >
-              <option value="season">계절 + 날짜</option>
-              <option value="weekday">요일</option>
-            </select>
+          <DatePicker
+            onSelect={(value) => {
+              // 문자열 또는 배열이 들어올 수 있음
+              setCurrentValue(JSON.stringify(value));
+            }}
+          />
+        )}
 
-            {dateMode === "season" ? (
-              <>
-                <select
-                  value={season}
-                  onChange={(e) => setSeason(e.target.value)}
-                >
-                  <option value="spring">spring</option>
-                  <option value="summer">summer</option>
-                  <option value="fall">fall</option>
-                  <option value="winter">winter</option>
-                </select>
-                <div>
-                  <span style={{ minWidth: "24px", display: "inline-block" }}>
-                    {day}
-                  </span>
-                  <input
-                    type="range"
-                    min={1}
-                    max={28}
-                    value={day}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                      setDay(Number(e.target.value))
-                    }
-                  />
-                </div>
-              </>
-            ) : (
-              <select
-                value={weekday}
-                onChange={(e) => setWeekday(e.target.value)}
-              >
-                <option value="Mon">Mon</option>
-                <option value="Tue">Tue</option>
-                <option value="Wed">Wed</option>
-                <option value="Thu">Thu</option>
-                <option value="Fri">Fri</option>
-                <option value="Sat">Sat</option>
-                <option value="Sun">Sun</option>
-              </select>
-            )}
-          </div>
+        {currentType === "kids" && (
+          <Input
+            type="number"
+            value={currentValue}
+            onChange={(e) => setCurrentValue(e.target.value)}
+            placeholder="아이 수 (0~2)"
+          />
+        )}
+
+        {currentType === "chance" && (
+          <Input
+            type="number"
+            value={currentValue}
+            onChange={(e) => setCurrentValue(e.target.value)}
+            placeholder="확률 (0~100)"
+          />
+        )}
+
+        {currentType === "rel" && (
+          <select
+            value={currentValue}
+            onChange={(e) => setCurrentValue(e.target.value)}
+          >
+            <option value="">관계 선택</option>
+            <option value="spouse">배우자</option>
+            <option value="exspouse">전 배우자</option>
+            <option value="dating">연애 중</option>
+          </select>
         )}
 
         {/* flag */}
@@ -293,17 +303,49 @@ export default function ConditionForm({ onSubmit }: Props) {
           )}
 
         <Button type="button" onClick={addCondition}>
-          ADD MORE
+          +
+        </Button>
+        <Button
+          style={{ background: "#f44336" }}
+          onClick={() => setConditions([])}
+        >
+          -
         </Button>
       </InputRow>
 
       {/* 리스트 */}
       <ConditionList>
         {conditions.map((c, i) => (
-          <li key={i}>
-            {c.type === "flag"
-              ? `flag.${c.key} = ${c.value}`
-              : `${c.type}: ${JSON.stringify(c.value)}`}
+          <li
+            key={i}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span>
+              {c.type === "flag"
+                ? `flag.${c.key} = ${c.value}`
+                : `${c.type}: ${JSON.stringify(c.value)}`}
+            </span>
+            <button
+              style={{
+                marginLeft: "0.5rem",
+                background: "red",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                padding: "0.2rem 0.5rem",
+                cursor: "pointer",
+              }}
+              onClick={() => {
+                const newConds = conditions.filter((_, idx) => idx !== i);
+                setConditions(newConds);
+              }}
+            >
+              -
+            </button>
           </li>
         ))}
       </ConditionList>

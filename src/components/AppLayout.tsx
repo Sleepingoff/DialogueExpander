@@ -1,4 +1,5 @@
 import type { HTMLAttributes } from "react";
+import { Link } from "react-router";
 import styled from "styled-components";
 
 const Wrapper = styled.div`
@@ -29,7 +30,9 @@ type Props = HTMLAttributes<HTMLDivElement>;
 export default function AppLayout({ children, ...props }: Props) {
   return (
     <Wrapper>
-      <Header>Dialogue Expander Editor</Header>
+      <Header>
+        <Link to="/">Dialogue Expander Editor</Link>
+      </Header>
       <Main {...props}>{children}</Main>
       <Footer>© 2025 Dialogue Expander</Footer>
     </Wrapper>

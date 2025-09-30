@@ -30,47 +30,54 @@ const CheckboxRow = styled.label`
   gap: 0.5rem;
 `;
 
-// ---------------- 변환 함수 ----------------
+// ---------------- CP 변환기 ----------------
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const convertCPtoDE = (cpJson: any) => {
   const result = { hearts: {} };
-
   if (!cpJson.Changes) return result;
 
-  cpJson.Changes.forEach((change) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  cpJson.Changes.forEach((change: any) => {
     if (change.Action !== "EditData") return;
     if (!change.Target?.startsWith("Characters/Dialogue/")) return;
 
     const entries = change.Entries || {};
     const when = change.When || {};
     const baseHearts = when.Hearts ? Number(when.Hearts) : 0;
-
     if (!result.hearts[baseHearts]) result.hearts[baseHearts] = {};
 
     Object.entries(entries).forEach(([entryKey, text]) => {
-      const cond: {
-        weather?: string;
-        date?: string;
-        location?: string;
-        event?: string;
-        item?: string;
-      } = {};
+      const cond: Record<string, unknown> = {};
 
-      // ---------------- When 조건 변환 ----------------
+      // ---------------- When 조건 매핑 ----------------
       if (when.Weather)
         cond.weather = when.Weather === "Rain" ? "Rainy" : when.Weather;
-      if (when.Day) cond.date = when.Day;
+      if (when.Time) cond.time = when.Time;
       if (when.Location) cond.location = when.Location;
       if (when.Event) cond.event = when.Event;
+      if (when.DaysInState) cond.daysInState = Number(when.DaysInState);
+      if (when.Action) cond.action = when.Action;
+      if (when.Item) cond.item = when.Item;
+      if (when.Flag) cond.flag = when.Flag;
+      if (when.Kids) cond.kids = Number(when.Kids);
+      if (when.Chance) cond.chance = Number(when.Chance);
+      if (when.Relationship) cond.rel = when.Relationship;
 
       // ---------------- Entry Key 파싱 ----------------
-      // 요일 (Mon, Tue, ...)
+      // 요일 (Mon, Tue...)
       if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/.test(entryKey)) {
         cond.date = entryKey;
       }
-
       // 계절+날짜 (spring_15)
       else if (/^(spring|summer|fall|winter)_\d+$/.test(entryKey)) {
+        cond.date = entryKey;
+      }
+      // 계절+요일 (spring_Mon)
+      else if (
+        /^(spring|summer|fall|winter)_(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/.test(
+          entryKey
+        )
+      ) {
         cond.date = entryKey;
       }
       // 숫자 키 = 하트 수
@@ -90,18 +97,17 @@ const convertCPtoDE = (cpJson: any) => {
         const match = entryKey.match(/\((?:O|T|TR)\)(\w+)/);
         if (match) cond.item = match[1];
       }
-      // 요일+하트 (Mon4, Tue6...)
+      // 요일+하트 (Mon4)
       else if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)$/.test(entryKey)) {
         const [, day, hearts] = entryKey.match(
           /(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)/
         )!;
-        cond.date = day;
         const h = Number(hearts);
+        cond.date = day;
         result.hearts[h] ??= {};
         result.hearts[h][text as string] = cond;
         return;
       }
-
       // 계절+요일+하트 (spring_Mon6)
       else if (
         /^(spring|summer|fall|winter)_(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)$/.test(
@@ -112,38 +118,13 @@ const convertCPtoDE = (cpJson: any) => {
           /(spring|summer|fall|winter)_(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)/
         )!;
         const h = Number(hearts);
-
-        // 요일 → 날짜 배열 변환
-        const weekdayMap: Record<string, number[]> = {
-          Mon: [1, 8, 15, 22],
-          Tue: [2, 9, 16, 23],
-          Wed: [3, 10, 17, 24],
-          Thu: [4, 11, 18, 25],
-          Fri: [5, 12, 19, 26],
-          Sat: [6, 13, 20, 27],
-          Sun: [7, 14, 21, 28],
-        };
-
-        const days = weekdayMap[weekday];
+        cond.date = `${season}_${weekday}`;
         result.hearts[h] ??= {};
-
-        for (const d of days) {
-          const keyDate = `${season}_${d}`;
-          const cloneCond = { ...cond, date: keyDate };
-          // 조건 배열 누적
-          if (result.hearts[h][text]) {
-            const prev = result.hearts[h][text];
-            result.hearts[h][text] = Array.isArray(prev)
-              ? [...prev, cloneCond]
-              : [prev, cloneCond];
-          } else {
-            result.hearts[h][text] = cloneCond;
-          }
-        }
+        result.hearts[h][text as string] = cond;
         return;
       }
 
-      // ---------------- 결과에 추가 ----------------
+      // ---------------- 결과 추가 ----------------
       if (Object.keys(cond).length > 0) {
         result.hearts[baseHearts][text as string] = cond;
       } else {
@@ -155,30 +136,27 @@ const convertCPtoDE = (cpJson: any) => {
   return result;
 };
 
+// ---------------- 게임 내 기본 파일 변환 ----------------
 const convertGameFileToDialogueExpander = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   gameJson: any,
-  expandToAllHearts: boolean = false
+  expandToAllHearts = false
 ) => {
-  const result = { hearts: {} };
-  for (let h = 0; h <= 10; h++) {
-    result.hearts[h] = {};
-  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result: any = { hearts: {} };
+  for (let h = 0; h <= 10; h++) result.hearts[h] = {};
 
   for (const [key, text] of Object.entries(gameJson)) {
-    // 1. 요일만 (Mon, Tue...)
+    // 요일만
     if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/.test(key)) {
       if (expandToAllHearts) {
-        for (let h = 0; h <= 10; h++) {
+        for (let h = 0; h <= 10; h++)
           result.hearts[h][text as string] = { date: key };
-        }
-      } else {
-        result.hearts[0][text as string] = { date: key };
-      }
+      } else result.hearts[0][text as string] = { date: key };
       continue;
     }
 
-    // 2. 요일 + 하트 (Mon4)
+    // 요일+하트 (Mon4)
     if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)$/.test(key)) {
       const [, day, hearts] = key.match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)/)!;
       const h = Number(hearts);
@@ -186,49 +164,51 @@ const convertGameFileToDialogueExpander = (
       continue;
     }
 
-    // 3. 하트 숫자 키 ("4")
+    // 하트 수
     if (/^\d+$/.test(key)) {
       const h = Number(key);
       result.hearts[h]["default"] = text;
       continue;
     }
 
-    // 4. 계절 + 날짜 ("spring_15")
+    // 계절+날짜 (spring_15)
     if (/^(spring|summer|fall|winter)_\d+$/.test(key)) {
       if (expandToAllHearts) {
-        for (let h = 0; h <= 10; h++) {
+        for (let h = 0; h <= 10; h++)
           result.hearts[h][text as string] = { date: key };
-        }
-      } else {
-        result.hearts[0][text as string] = { date: key };
-      }
+      } else result.hearts[0][text as string] = { date: key };
       continue;
     }
 
-    // 5. 이벤트 조건 ("eventSeen_733330")
+    // 계절+요일 (spring_Mon)
+    if (
+      /^(spring|summer|fall|winter)_(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/.test(key)
+    ) {
+      if (expandToAllHearts) {
+        for (let h = 0; h <= 10; h++)
+          result.hearts[h][text as string] = { date: key };
+      } else result.hearts[0][text as string] = { date: key };
+      continue;
+    }
+
+    // 이벤트
     if (key.startsWith("eventSeen_")) {
       const id = key.split("_")[1];
       if (expandToAllHearts) {
-        for (let h = 0; h <= 10; h++) {
+        for (let h = 0; h <= 10; h++)
           result.hearts[h][text as string] = { event: id };
-        }
-      } else {
-        result.hearts[0][text as string] = { event: id };
-      }
+      } else result.hearts[0][text as string] = { event: id };
       continue;
     }
 
-    // 6. 선물 조건 ("AcceptGift_(O)279")
+    // 선물
     if (key.startsWith("AcceptGift_")) {
       const match = key.match(/\((?:O|T|TR)\)(\w+)/);
       if (match) {
         if (expandToAllHearts) {
-          for (let h = 0; h <= 10; h++) {
+          for (let h = 0; h <= 10; h++)
             result.hearts[h][text as string] = { item: match[1] };
-          }
-        } else {
-          result.hearts[0][text as string] = { item: match[1] };
-        }
+        } else result.hearts[0][text as string] = { item: match[1] };
       }
       continue;
     }
@@ -307,16 +287,14 @@ export default function Converter() {
 
       <input type="file" accept=".json" onChange={handleFileUpload} />
 
-      {!isCP && (
-        <CheckboxRow>
-          <input
-            type="checkbox"
-            checked={expandAll}
-            onChange={(e) => setExpandAll(e.target.checked)}
-          />
-          대사 확장 (모든 하트에 공통 대사 복사)
-        </CheckboxRow>
-      )}
+      <CheckboxRow>
+        <input
+          type="checkbox"
+          checked={expandAll}
+          onChange={(e) => setExpandAll(e.target.checked)}
+        />
+        대사 확장 (모든 하트에 공통 대사 복사)
+      </CheckboxRow>
 
       <h3>변환된 JSON</h3>
       <MonacoEditor
