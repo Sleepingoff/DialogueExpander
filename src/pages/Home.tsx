@@ -40,6 +40,21 @@ const Button = styled(Link)`
     background: #45a049;
   }
 `;
+// 외부 링크용 버튼
+const ExternalButton = styled.a`
+  display: inline-block;
+  background: #4c77af;
+  color: white;
+  padding: 0.8rem 1.2rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  text-decoration: none;
+
+  &:hover {
+    background: #45a049;
+  }
+`;
 
 export default function Home() {
   return (
@@ -51,6 +66,15 @@ export default function Home() {
       <ButtonGroup>
         <Button to="/editor">JSON 에디터</Button>
         <Button to="/converter">CP 변환기</Button>
+      </ButtonGroup>
+      <p style={{ color: "#4c77af" }}>Additional site by WBM</p>
+      <ButtonGroup>
+        <ExternalButton href="/event-editor.html" target="_blank">
+          이벤트 제작기
+        </ExternalButton>
+        <ExternalButton href="/dialogue-editor.html" target="_blank">
+          대사 편집기
+        </ExternalButton>
       </ButtonGroup>
     </Container>
   );

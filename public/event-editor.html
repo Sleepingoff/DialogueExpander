@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Stardew Event Code Builder</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --main-brown:#8b5a2b;
+  --main-gold:#d4a94e;
+  --main-gold-light:#e6bb5e;
+  --bg-light:#fffef6;
+  --stardew-brown:#d2b48c;
+}
+
+/* 배경 이미지 적용 */
+html,body{
+  height:100%;
+}
+body{
+  background: url("https://preview.redd.it/0m4yc7nd71s01.png?width=1080&crop=smart&auto=webp&s=dedf63e15778a12ea11d00f17a2f65eac12a8869")
+              no-repeat center center fixed;
+  background-size: cover;
+  font-family: 'Press Start 2P', cursive;
+  font-size:11px;
+  color:#3a2e1f;
+  margin:20px;
+}
+
+/* 컨테이너: 반투명 배경 */
+.container{
+  max-width:960px;
+  margin:auto;
+  padding:40px;
+  background-color: rgba(210,180,140,0.9); /* 반투명 적용 */
+  border: 4px solid var(--main-brown);
+  box-shadow: 0 0 0 4px #a9743a, 0 8px 20px rgba(0,0,0,0.35);
+  border-radius:12px;
+}
+
+/* 텍스트 스타일 */
+h1{
+  text-align:center;
+  text-shadow: 2px 2px #e3c898;
+  margin-bottom:30px;
+  font-size:14px;
+}
+.section{
+  background:#fdf5dc;
+  border:4px solid #a9743a;
+  padding:18px;
+  margin-bottom:22px;
+  box-shadow: inset 0 0 4px #e3c898;
+  border-radius:8px;
+}
+.section h3{ margin-bottom:12px; font-size:16px; }
+
+/* 입력 그룹 */
+.input-group{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px 12px;
+  align-items:center;
+  margin-bottom:14px;
+}
+label{
+  display:flex;
+  flex-direction:column;
+  font-size:12px;
+  gap:4px;
+}
+
+/* 버튼 */
+button{
+  padding:10px 14px;
+  font-size:13px;
+  font-family: 'Press Start 2P', cursive !important;
+  font-weight:bold;
+  background-color:var(--main-gold);
+  border:3px solid var(--main-brown);
+  color:#3a2e1f;
+  cursor:pointer;
+  box-shadow:2px 2px 0 #6e3f1f;
+  transition: all 0.1s ease-in-out;
+}
+button:hover{ background-color: var(--main-gold-light); }
+button:active{
+  box-shadow: inset 2px 2px 0 #6e3f1f;
+  transform: translateY(1px);
+}
+
+/* 입력창 */
+input, textarea{
+  border:3px solid var(--main-brown);
+  background-color: var(--bg-light);
+  padding:6px;
+  font-family:'Press Start 2P', cursive;
+  font-size:12px;
+  color:#3a2e1f;
+}
+textarea#eventCode{
+  width:100%;
+  height:220px;
+  margin-top:14px;
+}
+#output{
+  white-space: pre-wrap;
+  background: var(--bg-light);
+  border: 3px solid var(--main-brown);
+  padding: 12px;
+  margin-top: 20px;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 11px;
+}
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>Stardew Event Code Builder</h1>
+
+    <!-- Setup -->
+    <div class="section" id="setupSection">
+      <h3>Setup</h3>
+      <div class="input-group">
+        <label>BGM<input type="text" id="bgm" value="50s"></label>
+        <label>Camera X<input type="number" id="cameraX" value="14"></label>
+        <label>Camera Y<input type="number" id="cameraY" value="18"></label>
+        <button onclick="addInitialSetup()">Add BGM & Camera</button>
+      </div>
+      <div class="input-group">
+        <label>Actor<input type="text" id="actor" value="farmer"></label>
+        <label>X<input type="number" id="posX" value="0"></label>
+        <label>Y<input type="number" id="posY" value="0"></label>
+        <!-- NPC Position: label은 Direction, id는 direction -->
+        <label>Direction<input type="number" id="direction" value="0"></label>
+        <button onclick="addNPCPosition()">NPC Position</button>
+      </div>
+      <div class="input-group">
+        <label>Actor<input type="text" id="friendshipActor" value="Harvey"></label>
+        <label>Points<input type="number" id="friendshipPoints" value="50"></label>
+        <button onclick="addFriendship()">Add Friendship</button>
+      </div>
+    </div>
+
+    <!-- Movement -->
+    <div class="section" id="movementSection">
+      <h3>Movement</h3>
+      <div class="input-group">
+        <label>Actor<input type="text" id="moveActor" value="farmer"></label>
+        <label>Tiles X<input type="number" id="tilesX" value="0"></label>
+        <label>Tiles Y<input type="number" id="tilesY" value="0"></label>
+        <!-- Movement: label을 Direction으로 변경 (id는 moveDirection로 유지하여 내부 충돌 방지) -->
+        <label>Direction<input type="number" id="moveDirection" value="0"></label>
+        <label>Duration<input type="number" id="duration" value="1000"></label>
+        <button onclick="addAdvancedMove()">advancedMove</button>
+        <button onclick="addMove()">move</button>
+        <button onclick="addPositionOffset()">positionOffset</button>
+        <button onclick="addFaceDirection()">faceDirection</button>
+      </div>
+      <div class="input-group">
+        <button onclick="insertCommand('jump farmer')">jump farmer</button>
+        <button onclick="insertCommand('warp farmer -100 -100')">warp farmer</button>
+      </div>
+    </div>
+
+    <!-- Sound -->
+    <div class="section">
+      <h3>Sound</h3>
+      <div class="input-group">
+        <button onclick="insertCommand('playSound doorOpen')">playSound doorOpen</button>
+        <button onclick="insertCommand('playMusic none')">playMusic none</button>
+        <button onclick="insertCommand('playMusic echos')">playMusic echos</button>
+      </div>
+    </div>
+
+    <!-- Screen -->
+    <div class="section">
+      <h3>Screen</h3>
+      <div class="input-group">
+        <button onclick="insertCommand('fade/viewport -1000 -1000')">fade</button>
+        <button onclick="insertCommand('globalFadeToClear 0.01')">globalFadeToClear</button>
+        <button onclick="insertCommand('viewport -1000 -1000')">viewport hide</button>
+        <button onclick="insertCommand('viewport 14 18 clamp true')">viewport clamp</button>
+      </div>
+    </div>
+
+    <!-- Dialogue -->
+    <div class="section">
+      <h3>Dialogue</h3>
+      <div class="input-group">
+        <label>Actor<input type="text" id="speakActor" value="farmer"></label>
+        <label>Text<textarea id="speakText"></textarea></label>
+        <label>Emotion<input type="text" id="emotion" value="$0"></label>
+        <button onclick="addSpeak()">speak</button>
+        <button onclick="addTextAboveHead()">textAboveHead</button>
+      </div>
+      <div class="input-group">
+        <button onclick="insertCommand('message \"Your text\"')">message</button>
+      </div>
+    </div>
+
+    <!-- Actor Actions -->
+    <div class="section">
+      <h3>Actor Actions</h3>
+      <div class="input-group">
+        <button onclick="insertCommand('emote farmer 28')">emote farmer 28</button>
+        <button onclick="insertCommand('pause 500')">pause 500</button>
+        <button onclick="insertCommand('end')">end</button>
+      </div>
+    </div>
+
+    <!-- Misc -->
+    <div class="section">
+      <h3>Misc</h3>
+      <div class="input-group">
+        <label>Item ID<input type="number" id="itemId" value="346"></label>
+        <label>Count<input type="number" id="itemCount" value="1"></label>
+        <label>Quality<input type="number" id="itemQuality" value="1"></label>
+        <button onclick="addItem()">addItem</button>
+      </div>
+    </div>
+
+    <textarea id="eventCode" placeholder="Write your event code here..."></textarea>
+    <button onclick="generateCode()">Generate Code</button>
+    <div id="output"></div>
+  </div>
+
+<script>
+function insertCommand(cmd){
+  const t = document.getElementById('eventCode');
+  const s = t.selectionStart, e = t.selectionEnd;
+  t.value = t.value.substring(0,s) + '/' + cmd + t.value.substring(e);
+  t.selectionStart = t.selectionEnd = s + cmd.length + 1; // +1 for '/'
+  t.focus();
+}
+
+function addInitialSetup(){
+  const bgm = document.getElementById('bgm').value || '50s';
+  const x = parseInt(document.getElementById('cameraX').value) || 0;
+  const y = parseInt(document.getElementById('cameraY').value) || 0;
+  insertCommand(`${bgm}/${x} ${y}`);
+}
+
+function addNPCPosition(){
+  const a = document.getElementById('actor').value || 'farmer';
+  const x = parseInt(document.getElementById('posX').value) || 0;
+  const y = parseInt(document.getElementById('posY').value) || 0;
+  // NPC Position의 direction을 읽음
+  const d = parseInt(document.getElementById('direction').value) || 0;
+  insertCommand(`${a} ${x} ${y} ${d}`);
+}
+
+function addFriendship(){
+  const a = document.getElementById('friendshipActor').value || 'Harvey';
+  const p = parseInt(document.getElementById('friendshipPoints').value) || 0;
+  insertCommand(`friendship ${a} ${p}`);
+}
+
+function addPositionOffset(){
+  const a = document.getElementById('moveActor').value || 'farmer';
+  const x = parseInt(document.getElementById('tilesX').value) || 0;
+  const y = parseInt(document.getElementById('tilesY').value) || 0;
+  insertCommand(`positionOffset ${a} ${x*64} ${y*64}`);
+}
+
+function addFaceDirection(){
+  const a = document.getElementById('moveActor').value || 'farmer';
+  const d = parseInt(document.getElementById('moveDirection').value) || 0; // movement의 Direction 사용
+  insertCommand(`faceDirection ${a} ${d}`);
+}
+
+function addAdvancedMove(){
+  const a = document.getElementById('moveActor').value || 'farmer';
+  const x = parseInt(document.getElementById('tilesX').value) || 0;
+  const y = parseInt(document.getElementById('tilesY').value) || 0;
+  const d = parseInt(document.getElementById('moveDirection').value) || 0;
+  const dur = parseInt(document.getElementById('duration').value) || 1000;
+  insertCommand(`advancedMove ${a} false ${x} ${y} ${d} ${dur}`);
+}
+
+function addMove(){
+  const a = document.getElementById('moveActor').value || 'farmer';
+  const x = parseInt(document.getElementById('tilesX').value) || 0;
+  const y = parseInt(document.getElementById('tilesY').value) || 0;
+  const d = parseInt(document.getElementById('moveDirection').value) || 0;
+  insertCommand(`move ${a} ${x} ${y} ${d}`);
+}
+
+function addSpeak(){
+  const a = document.getElementById('speakActor').value || 'farmer';
+  const t = document.getElementById('speakText').value || 'dialogue';
+  const e = document.getElementById('emotion').value || '$0';
+  insertCommand(`speak ${a} "${t}${e}"`);
+}
+
+function addTextAboveHead(){
+  const a = document.getElementById('speakActor').value || 'farmer';
+  const t = document.getElementById('speakText').value || 'text';
+  insertCommand(`textAboveHead ${a} "${t}"`);
+}
+
+function addItem(){
+  const id = parseInt(document.getElementById('itemId').value) || 0;
+  const c = parseInt(document.getElementById('itemCount').value) || 1;
+  const q = parseInt(document.getElementById('itemQuality').value) || 1;
+  insertCommand(`addItem ${id} ${c} ${q}`);
+}
+
+function generateCode(){
+  const code = document.getElementById('eventCode').value;
+  const out = {
+    "Action":"EditData",
+    "Target":"Data/Events/Custom",
+    "Entries":{"CustomEvent": code}
+  };
+  document.getElementById('output').innerText = JSON.stringify(out, null, 2);
+}
+</script>
+</body>
+</html>

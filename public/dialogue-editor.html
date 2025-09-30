@@ -1,0 +1,153 @@
+<script type="text/javascript">
+        var gk_isXlsx = false;
+        var gk_xlsxFileLookup = {};
+        var gk_fileData = {};
+        function filledCell(cell) {
+          return cell !== '' && cell != null;
+        }
+        function loadFileData(filename) {
+        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+            try {
+                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+                var firstSheetName = workbook.SheetNames[0];
+                var worksheet = workbook.Sheets[firstSheetName];
+
+                // Convert sheet to JSON to filter blank rows
+                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+                // Filter out blank rows (rows where all cells are empty, null, or undefined)
+                var filteredData = jsonData.filter(row => row.some(filledCell));
+
+                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
+                var headerRowIndex = filteredData.findIndex((row, index) =>
+                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+                );
+                // Fallback
+                if (headerRowIndex === -1 || headerRowIndex > 25) {
+                  headerRowIndex = 0;
+                }
+
+                // Convert filtered JSON back to CSV
+                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
+                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+                return csv;
+            } catch (e) {
+                console.error(e);
+                return "";
+            }
+        }
+        return gk_fileData[filename] || "";
+        }
+        </script><!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>간단한 텍스트 편집기</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        input[type="text"] {
+            width: 100%;
+            max-width: 500px;
+            padding: 10px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+        textarea {
+            width: 100%;
+            max-width: 500px;
+            height: 150px;
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        button {
+            padding: 8px 16px;
+            margin: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .group-1 {
+            background-color: #f0f0f0;
+        }
+        .group-2 {
+            background-color: #e0e0e0;
+            padding: 10px 20px;
+            font-weight: bold;
+        }
+        .group-3 {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 40px;
+            font-weight: bold;
+            width: 150px;
+        }
+        #output {
+            margin-top: 20px;
+            width: 100%;
+            max-width: 500px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            min-height: 100px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <h2>간단한 텍스트 편집기</h2>
+    <input type="text" id="dayInput" placeholder="요일을 입력하세요 (예: Tue)">
+    <textarea id="inputText" placeholder="여기에 텍스트를 입력하세요..."></textarea>
+    <div class="button-group">
+        <button class="group-1" onclick="addText('$0')">무표정</button>
+        <button class="group-1" onclick="addText('$1')">웃기</button>
+        <button class="group-1" onclick="addText('$2')">슬픈</button>
+        <button class="group-1" onclick="addText('$u')">독특</button>
+        <button class="group-1" onclick="addText('$4')">사랑</button>
+        <button class="group-1" onclick="addText('$5')">분노</button>
+    </div>
+    <div class="button-group">
+        <button class="group-2" onclick="addText('#$b#')">잇기</button>
+        <button class="group-2" onclick="addText('#$e#')">끝내기</button>
+    </div>
+    <div class="button-group">
+        <button class="group-3" onclick="showOutput()">확인</button>
+    </div>
+    <div id="output">결과가 여기에 표시됩니다.</div>
+
+    <script>
+        function addText(character) {
+            const inputText = document.getElementById('inputText');
+            inputText.value += character;
+        }
+
+        function showOutput() {
+            const dayInput = document.getElementById('dayInput').value.trim();
+            const inputText = document.getElementById('inputText').value.trim();
+            const outputDiv = document.getElementById('output');
+            
+            if (!dayInput && !inputText) {
+                outputDiv.textContent = '요일과 텍스트를 입력하세요!';
+            } else if (!dayInput) {
+                outputDiv.textContent = '요일을 입력하세요!';
+            } else if (!inputText) {
+                outputDiv.textContent = '텍스트를 입력하세요!';
+            } else {
+                outputDiv.textContent = `"${dayInput}": "${inputText}",`;
+            }
+        }
+    </script>
+</body>
+</html>
