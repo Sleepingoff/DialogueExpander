@@ -133,10 +133,18 @@ const convertCPtoDE = (cpJson: any, expandAll: boolean) => {
         cond.location = "spouseRoom";
       }
 
-      // funLeave / funReturn / jobLeave / jobReturn
-      else if (/^(funLeave|funReturn|jobLeave|jobReturn)_/.test(entryKey)) {
-        const action = entryKey.split("_")[0]; // funLeave 등
+      // funLeave / funReturn / jobLeave / jobReturn / nobed
+      else if (
+        /^(funLeave|funReturn|jobLeave|jobReturn|nobed)_/.test(entryKey)
+      ) {
+        const action = entryKey.split("_")[0];
         cond.action = action;
+      }
+
+      // luck (Good / Neutral / Bad)
+      else if (/^(Good|Neutral|Bad)_/.test(entryKey)) {
+        const luck = entryKey.split("_")[0];
+        cond.luck = luck.toLowerCase(); // "good" | "neutral" | "bad"
       }
 
       // Rainy_Day_X, Rainy_Night_X
@@ -290,10 +298,17 @@ const convertGameFileToDialogueExpander = (
       continue;
     }
 
-    // funLeave / funReturn / jobLeave / jobReturn
-    if (/^(funLeave|funReturn|jobLeave|jobReturn)_/.test(key)) {
-      const action = key.split("_")[0]; // funLeave 등
+    // funLeave / funReturn / jobLeave / jobReturn / nobed
+    if (/^(funLeave|funReturn|jobLeave|jobReturn|nobed)_/.test(key)) {
+      const action = key.split("_")[0];
       result.hearts[0][text as string] = { action };
+      continue;
+    }
+
+    // luck (Good / Neutral / Bad)
+    if (/^(Good|Neutral|Bad)_/.test(key)) {
+      const luck = key.split("_")[0];
+      result.hearts[0][text as string] = { luck: luck.toLowerCase() }; // "good" | "neutral" | "bad"
       continue;
     }
 
