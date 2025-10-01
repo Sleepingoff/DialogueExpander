@@ -32,7 +32,7 @@ const CheckboxRow = styled.label`
 
 // ---------------- CP 변환기 ----------------
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const convertCPtoDE = (cpJson: any) => {
+const convertCPtoDE = (cpJson: any, expandAll: boolean) => {
   const result = { hearts: {} };
   if (!cpJson.Changes) return result;
 
@@ -123,12 +123,65 @@ const convertCPtoDE = (cpJson: any) => {
         result.hearts[h][text as string] = cond;
         return;
       }
+      // patio_NPC
+      else if (entryKey.startsWith("patio_")) {
+        cond.location = "patio";
+      }
 
-      // ---------------- 결과 추가 ----------------
+      // spouseRoom_NPC
+      else if (entryKey.startsWith("spouseRoom_")) {
+        cond.location = "spouseRoom";
+      }
+
+      // funLeave / funReturn / jobLeave / jobReturn
+      else if (/^(funLeave|funReturn|jobLeave|jobReturn)_/.test(entryKey)) {
+        const action = entryKey.split("_")[0]; // funLeave 등
+        cond.action = action;
+      }
+
+      // Rainy_Day_X, Rainy_Night_X
+      else if (/^Rainy_(Day|Night)_\d+$/.test(entryKey)) {
+        const [, time] = entryKey.match(/^Rainy_(Day|Night)_\d+$/)!;
+        cond.weather = "Rainy";
+        cond.time = time === "Day" ? "0600-1800" : "1800-2600";
+      }
+
+      // Indoor_Day_X, Indoor_Night_X
+      else if (/^Indoor_(Day|Night)_\d+$/.test(entryKey)) {
+        const [, time] = entryKey.match(/^Indoor_(Day|Night)_\d+$/)!;
+        cond.location = "Indoor";
+        cond.time = time === "Day" ? "0600-1800" : "1800-2600";
+      }
+
+      // Outdoor_X
+      else if (/^Outdoor_\d+$/.test(entryKey)) {
+        cond.location = "Outdoor";
+      }
+
+      // OneKid_X, TwoKids_X
+      else if (/^(OneKid|TwoKids)_\d+$/.test(entryKey)) {
+        const [, kids] = entryKey.match(/^(OneKid|TwoKids)_\d+$/)!;
+        cond.kids = kids === "OneKid" ? 1 : 2;
+      }
+
       if (Object.keys(cond).length > 0) {
-        result.hearts[baseHearts][text as string] = cond;
+        if (expandAll) {
+          for (let h = 0; h <= 10; h++) {
+            result.hearts[h] ??= {};
+            result.hearts[h][cleanText(text as string)] = cond;
+          }
+        } else {
+          result.hearts[baseHearts][cleanText(text as string)] = cond;
+        }
       } else {
-        result.hearts[baseHearts]["default"] = text;
+        if (expandAll) {
+          for (let h = 0; h <= 10; h++) {
+            result.hearts[h] ??= {};
+            result.hearts[h]["default"] = cleanText(text as string);
+          }
+        } else {
+          result.hearts[baseHearts]["default"] = cleanText(text as string);
+        }
       }
     });
   });
@@ -151,8 +204,9 @@ const convertGameFileToDialogueExpander = (
     if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)$/.test(key)) {
       if (expandToAllHearts) {
         for (let h = 0; h <= 10; h++)
-          result.hearts[h][text as string] = { date: key };
-      } else result.hearts[0][text as string] = { date: key };
+          result.hearts[h][cleanText(text as string) as string] = { date: key };
+      } else
+        result.hearts[0][cleanText(text as string) as string] = { date: key };
       continue;
     }
 
@@ -160,14 +214,14 @@ const convertGameFileToDialogueExpander = (
     if (/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)$/.test(key)) {
       const [, day, hearts] = key.match(/(Mon|Tue|Wed|Thu|Fri|Sat|Sun)(\d+)/)!;
       const h = Number(hearts);
-      result.hearts[h][text as string] = { date: day };
+      result.hearts[h][cleanText(text as string) as string] = { date: day };
       continue;
     }
 
     // 하트 수
     if (/^\d+$/.test(key)) {
       const h = Number(key);
-      result.hearts[h]["default"] = text;
+      result.hearts[h]["default"] = cleanText(text as string);
       continue;
     }
 
@@ -175,8 +229,9 @@ const convertGameFileToDialogueExpander = (
     if (/^(spring|summer|fall|winter)_\d+$/.test(key)) {
       if (expandToAllHearts) {
         for (let h = 0; h <= 10; h++)
-          result.hearts[h][text as string] = { date: key };
-      } else result.hearts[0][text as string] = { date: key };
+          result.hearts[h][cleanText(text as string) as string] = { date: key };
+      } else
+        result.hearts[0][cleanText(text as string) as string] = { date: key };
       continue;
     }
 
@@ -186,8 +241,9 @@ const convertGameFileToDialogueExpander = (
     ) {
       if (expandToAllHearts) {
         for (let h = 0; h <= 10; h++)
-          result.hearts[h][text as string] = { date: key };
-      } else result.hearts[0][text as string] = { date: key };
+          result.hearts[h][cleanText(text as string) as string] = { date: key };
+      } else
+        result.hearts[0][cleanText(text as string) as string] = { date: key };
       continue;
     }
 
@@ -196,8 +252,9 @@ const convertGameFileToDialogueExpander = (
       const id = key.split("_")[1];
       if (expandToAllHearts) {
         for (let h = 0; h <= 10; h++)
-          result.hearts[h][text as string] = { event: id };
-      } else result.hearts[0][text as string] = { event: id };
+          result.hearts[h][cleanText(text as string) as string] = { event: id };
+      } else
+        result.hearts[0][cleanText(text as string) as string] = { event: id };
       continue;
     }
 
@@ -207,18 +264,86 @@ const convertGameFileToDialogueExpander = (
       if (match) {
         if (expandToAllHearts) {
           for (let h = 0; h <= 10; h++)
-            result.hearts[h][text as string] = { item: match[1] };
-        } else result.hearts[0][text as string] = { item: match[1] };
+            result.hearts[h][cleanText(text as string) as string] = {
+              item: match[1],
+            };
+        } else
+          result.hearts[0][cleanText(text as string) as string] = {
+            item: match[1],
+          };
       }
       continue;
     }
+    // patio_NPC
+    if (key.startsWith("patio_")) {
+      result.hearts[0][cleanText(text as string) as string] = {
+        location: "patio",
+      };
+      continue;
+    }
 
+    // spouseRoom_NPC
+    if (key.startsWith("spouseRoom_")) {
+      result.hearts[0][cleanText(text as string) as string] = {
+        location: "spouseRoom",
+      };
+      continue;
+    }
+
+    // funLeave / funReturn / jobLeave / jobReturn
+    if (/^(funLeave|funReturn|jobLeave|jobReturn)_/.test(key)) {
+      const action = key.split("_")[0]; // funLeave 등
+      result.hearts[0][text as string] = { action };
+      continue;
+    }
+
+    // Rainy_Day_X, Rainy_Night_X
+    if (/^Rainy_(Day|Night)_\d+$/.test(key)) {
+      const [, time] = key.match(/^Rainy_(Day|Night)_\d+$/)!;
+      result.hearts[0][text as string] = {
+        weather: "Rainy",
+        time: time === "Day" ? "0600-1800" : "1800-2600",
+      };
+      continue;
+    }
+
+    // Indoor_Day_X, Indoor_Night_X
+    if (/^Indoor_(Day|Night)_\d+$/.test(key)) {
+      const [, time] = key.match(/^Indoor_(Day|Night)_\d+$/)!;
+      result.hearts[0][cleanText(text as string) as string] = {
+        location: "Indoor",
+        time: time === "Day" ? "0600-1800" : "1800-2600",
+      };
+      continue;
+    }
+
+    // Outdoor_X
+    if (/^Outdoor_\d+$/.test(key)) {
+      result.hearts[0][cleanText(text as string) as string] = {
+        location: "Outdoor",
+      };
+      continue;
+    }
+
+    // OneKid_X, TwoKids_X
+    if (/^(OneKid|TwoKids)_\d+$/.test(key)) {
+      const [, kids] = key.match(/^(OneKid|TwoKids)_\d+$/)!;
+      result.hearts[0][cleanText(text as string) as string] = {
+        kids: kids === "OneKid" ? 1 : 2,
+      };
+      continue;
+    }
+    const resultText = cleanText(text as string);
     // 기본 → 0하트 default
-    result.hearts[0]["default"] = text;
+    result.hearts[0]["default"] = resultText;
   }
 
   return result;
 };
+function cleanText(str: string): string {
+  return str.replace(/[\u200B-\u200F\uFEFF]/g, "");
+  // 필요하다면 \u202A–\u202E 같은 bidi markers도 추가 가능
+}
 
 // ---------------- 컴포넌트 ----------------
 export default function Converter() {
@@ -253,7 +378,7 @@ export default function Converter() {
 
     let deJson;
     if (isCP) {
-      deJson = convertCPtoDE(sourceJson);
+      deJson = convertCPtoDE(sourceJson, expandAll);
     } else {
       deJson = convertGameFileToDialogueExpander(sourceJson, expandAll);
     }
